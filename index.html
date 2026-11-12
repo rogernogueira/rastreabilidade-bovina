@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rastreabilidade Bovina com IA</title>
+<meta name="description" content="Assistente Inteligente para Gestão e Rastreabilidade Bovina — apresentação do projeto: identificação RFID, evidências e inteligência artificial no manejo.">
+<meta property="og:title" content="Assistente Inteligente para Gestão e Rastreabilidade Bovina">
+<meta property="og:description" content="Do manejo à decisão. Cada animal, cada evento, cada evidência.">
+<meta property="og:image" content="midia/capa-video.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Montserrat:wght@600;700;800&family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+/* Design system COMAIS Labs — o mesmo do vídeo (src/bov/theme.ts) */
+:root {
+  --azul: #5B84B1; --azul-deep: #3D6188; --azul-soft: #E3EBF4;
+  --ouro: #D6C68B; --ouro-deep: #8C7A3F; --ouro-soft: #F5F0DF;
+  --verde: #9CB994; --verde-deep: #5E7D55; --verde-soft: #E8F0E5;
+  --terra: #B4543F; --terra-deep: #8F3F2E; --terra-soft: #F6E6E2;
+  --laranja: #E47622; --laranja-deep: #B35A12; --laranja-soft: #FCEBDD;
+  --lavanda: #A99BDB; --lavanda-deep: #6B5CA5; --lavanda-soft: #EEEAF7;
+  --texto: #333333; --cinza: #5A5B5D;
+  --superficie: #FFFFFF; --neutro: #F8FAFC; --borda: #E2E8F0; --grade: #EDF1F6;
+  --nelore: #ECEAE4; --nelore-s: #CFCBC2; --nelore-e: #8F8A82; --focinho: #4B4743;
+  --pasto: #B9CF9E; --pasto-e: #9CB994; --madeira: #A77B52; --madeira-s: #86603C;
+  --palco: #1d2430;
+  --sombra: 0 10px 30px rgba(51,51,51,.07);
+  --sombra-s: 0 4px 14px rgba(51,51,51,.05);
+  --heading: "Montserrat", system-ui, sans-serif;
+  --body: "Open Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--palco); overflow: hidden; }
+body { font-family: var(--body); color: var(--texto); -webkit-font-smoothing: antialiased; }
+
+/* palco 1920 × 1080 escalado para caber na janela */
+#palco { position: fixed; inset: 0; overflow: hidden; }
+#deck { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; transform-origin: center center; translate: -50% -50%; background: var(--superficie); overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,.35); }
+
+/* moldura institucional, fixa entre slides */
+.faixa { position: absolute; top: 0; left: 0; right: 0; height: 40px; background: var(--azul); display: flex; align-items: center; justify-content: space-between; padding: 0 96px; font: 500 16px/1 var(--mono); letter-spacing: 3.4px; color: rgba(255,255,255,.94); z-index: 5; }
+.marca { position: absolute; top: 40px; left: 0; right: 0; height: 72px; background: var(--superficie); border-bottom: 1px solid var(--borda); display: flex; align-items: center; gap: 22px; padding: 0 96px; z-index: 5; }
+.marca b { font: 800 29px/1 var(--heading); letter-spacing: -.4px; }
+.marca b span { color: var(--azul-deep); font-weight: 700; }
+.marca i { width: 1px; height: 26px; background: var(--borda); }
+.marca small { font: 400 15px/1 var(--mono); letter-spacing: 3.4px; color: var(--cinza); }
+#mosaico { position: absolute; left: 1480px; top: 48px; z-index: 6; pointer-events: none; }
+.rodape { position: absolute; left: 0; right: 0; bottom: 0; height: 88px; background: var(--neutro); border-top: 1px solid var(--borda); display: flex; align-items: center; justify-content: space-between; padding: 0 96px; z-index: 5; font: 600 16px/1 var(--mono); letter-spacing: 3px; color: var(--cinza); text-transform: uppercase; }
+.rodape .nav { display: flex; gap: 10px; }
+.rodape button { font: inherit; letter-spacing: 2px; color: var(--azul-deep); background: var(--superficie); border: 1px solid var(--borda); border-radius: 4px; padding: 12px 18px; cursor: pointer; }
+.rodape button:hover { border-color: var(--azul); }
+.rodape button:focus-visible { outline: 3px solid var(--azul-deep); outline-offset: 2px; }
+#progresso { position: absolute; left: 0; right: 0; bottom: 88px; height: 4px; background: var(--borda); z-index: 6; }
+#progresso div { height: 4px; background: var(--azul); transition: width .5s cubic-bezier(.16,1,.3,1); }
+
+/* slides */
+.slide { position: absolute; left: 0; top: 112px; width: 1920px; height: 876px; padding: 48px 96px 40px; z-index: 7; display: flex; flex-direction: column; justify-content: center; opacity: 0; visibility: hidden; transition: opacity .45s cubic-bezier(.16,1,.3,1), visibility 0s .45s; }
+.slide.ativo { opacity: 1; visibility: visible; transition: opacity .45s cubic-bezier(.16,1,.3,1); }
+.slide .anima { opacity: 0; translate: 0 22px; transition: opacity .6s cubic-bezier(.16,1,.3,1), translate .6s cubic-bezier(.16,1,.3,1); }
+.slide.ativo .anima { opacity: 1; translate: 0 0; }
+.slide.ativo .anima.d1 { transition-delay: .08s; } .slide.ativo .anima.d2 { transition-delay: .16s; }
+.slide.ativo .anima.d3 { transition-delay: .24s; } .slide.ativo .anima.d4 { transition-delay: .32s; }
+.slide.ativo .anima.d5 { transition-delay: .40s; } .slide.ativo .anima.d6 { transition-delay: .48s; }
+@media (prefers-reduced-motion: reduce) { .slide, .slide .anima { transition: none !important; translate: none !important; } }
+
+.eyebrow { display: flex; align-items: center; gap: 14px; font: 600 18px/1 var(--mono); letter-spacing: 4.2px; text-transform: uppercase; color: var(--azul-deep); }
+.eyebrow::before { content: ""; width: 28px; height: 2px; background: currentColor; }
+h1, h2, h3 { font-family: var(--heading); font-weight: 800; color: var(--texto); margin: 0; }
+h1 { font-size: 84px; line-height: 1.06; letter-spacing: -1.8px; }
+h2 { font-size: 56px; line-height: 1.12; letter-spacing: -1.2px; margin-top: 18px; }
+h3 { font-size: 30px; line-height: 1.2; letter-spacing: -.4px; }
+.acento { color: var(--azul); }
+.apoio { font-size: 30px; line-height: 1.45; color: var(--cinza); margin: 22px 0 0; max-width: 1100px; }
+p { margin: 0; }
+
+.duas { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: start; }
+.painel { background: var(--azul-soft); border: 1px solid var(--borda); border-radius: 2px; box-shadow: var(--sombra); position: relative; overflow: hidden; }
+.painel svg { display: block; }
+.selo { position: absolute; top: -30px; right: 0; padding: 4px 0 4px 10px; background: var(--superficie); display: flex; gap: 8px; align-items: center; font: 600 15px/1 var(--mono); letter-spacing: 2.2px; text-transform: uppercase; color: var(--cinza); }
+.selo::before { content: ""; width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--cinza); }
+.com-selo { position: relative; }
+
+.nota { background: var(--superficie); border: 1px solid var(--borda); border-left: 5px solid var(--cor, var(--azul)); border-radius: 2px; box-shadow: var(--sombra-s); padding: 22px 30px; }
+.nota .k { font: 600 17px/1.2 var(--mono); letter-spacing: 3.6px; text-transform: uppercase; color: var(--cor-deep, var(--azul-deep)); }
+.nota .c { margin-top: 10px; font-size: 27px; line-height: 1.45; }
+.notas { display: flex; flex-direction: column; gap: 22px; }
+
+.chip { display: inline-flex; align-items: center; gap: 8px; font: 600 20px/1 var(--mono); letter-spacing: 2px; padding: 11px 18px; border-radius: 4px; border: 1px solid var(--borda); background: var(--superficie); color: var(--azul-deep); }
+.pill { display: inline-flex; align-items: center; gap: 8px; font: 600 18px/1 var(--mono); letter-spacing: 1px; padding: 8px 14px; border-radius: 999px; white-space: nowrap; }
+.ok { --cor: var(--verde); --cor-deep: var(--verde-deep); --soft: var(--verde-soft); }
+.id { --cor: var(--azul); --cor-deep: var(--azul-deep); --soft: var(--azul-soft); }
+.ev { --cor: var(--laranja); --cor-deep: var(--laranja-deep); --soft: var(--laranja-soft); }
+.ia { --cor: var(--lavanda); --cor-deep: var(--lavanda-deep); --soft: var(--lavanda-soft); }
+.al { --cor: var(--terra); --cor-deep: var(--terra-deep); --soft: var(--terra-soft); }
+.go { --cor: var(--ouro); --cor-deep: var(--ouro-deep); --soft: var(--ouro-soft); }
+.pill.ok, .pill.id, .pill.ev, .pill.ia, .pill.al, .pill.go { background: var(--soft); color: var(--cor-deep); }
+
+/* telas simuladas */
+.tela { background: var(--texto); border-radius: 30px; padding: 16px; box-shadow: var(--sombra); }
+.tela > div { background: var(--neutro); border-radius: 16px; overflow: hidden; height: 100%; display: flex; flex-direction: column; }
+.tela .barra { height: 62px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; background: var(--superficie); border-bottom: 1px solid var(--borda); font: 700 22px/1 var(--heading); }
+.tela .corpo { padding: 22px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+.campo { display: flex; align-items: center; gap: 16px; padding: 12px 18px; background: var(--superficie); border: 1px solid var(--borda); border-left: 5px solid var(--cor, var(--borda)); border-radius: 6px; }
+.campo .r { font: 600 16px/1 var(--mono); letter-spacing: 2px; text-transform: uppercase; color: var(--cinza); }
+.campo .v { margin-top: 5px; font: 600 24px/1.25 var(--body); }
+.campo .x { flex: 1; min-width: 0; }
+.botao { height: 66px; border-radius: 12px; background: var(--verde-deep); color: #fff; display: flex; align-items: center; justify-content: center; gap: 12px; font: 700 26px/1 var(--heading); }
+.ico { width: 34px; height: 34px; flex-shrink: 0; }
+
+.etapas { display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px; margin-top: 48px; }
+.etapa { background: var(--superficie); border: 1px solid var(--borda); border-top: 6px solid var(--cor); border-radius: 4px; box-shadow: var(--sombra-s); padding: 26px 22px; min-height: 330px; }
+.etapa .n { font: 600 18px/1 var(--mono); letter-spacing: 3px; color: var(--cor-deep); }
+.etapa h3 { margin-top: 18px; font-size: 27px; }
+.etapa p { margin-top: 12px; font-size: 21px; line-height: 1.45; color: var(--cinza); }
+.etapa .ico { width: 56px; height: 56px; margin-top: 24px; }
+
+.card { background: var(--superficie); border: 1px solid var(--borda); border-radius: 8px; box-shadow: var(--sombra); padding: 22px 26px; }
+.k { font: 600 16px/1.2 var(--mono); letter-spacing: 2.6px; text-transform: uppercase; color: var(--cinza); }
+.grade4 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grade4 .card b { display: block; font: 800 30px/1.1 var(--heading); color: var(--azul-deep); }
+.grade4 .card span { display: block; margin-top: 8px; font-size: 24px; }
+
+.chat { display: flex; flex-direction: column; gap: 16px; }
+.balao { max-width: 640px; padding: 16px 22px; font-size: 25px; line-height: 1.4; }
+.balao.eu { align-self: flex-end; background: var(--azul-deep); color: #fff; border-radius: 20px 20px 4px 20px; }
+.balao.ass { align-self: flex-start; background: var(--superficie); border: 1px solid var(--borda); border-left: 5px solid var(--lavanda); border-radius: 20px 20px 20px 4px; }
+
+.alerta { display: flex; gap: 16px; align-items: center; padding: 18px 22px; background: var(--superficie); border: 1px solid var(--borda); border-left: 6px solid var(--cor); border-radius: 6px; box-shadow: var(--sombra-s); }
+.alerta .bola { width: 54px; height: 54px; border-radius: 50%; background: var(--soft); display: grid; place-items: center; flex-shrink: 0; }
+.alerta h4 { margin: 0; font: 700 25px/1.25 var(--body); }
+.alerta p { font-size: 21px; color: var(--cinza); margin-top: 2px; }
+
+.lote { display: grid; grid-template-columns: repeat(10, 1fr); gap: 8px; }
+.lote div { height: 50px; border-radius: 8px; display: grid; place-items: center; font: 600 18px/1 var(--mono); background: var(--verde-soft); border: 2px solid var(--verde); color: var(--verde-deep); }
+.lote div.v { background: var(--ouro-soft); border-color: var(--ouro); color: var(--ouro-deep); }
+
+video { width: 100%; display: block; background: #000; border-radius: 4px; }
+.aviso { font-size: 22px; line-height: 1.5; color: var(--cinza); }
+a { color: var(--azul-deep); }
+
+/* celular em pé: o palco continua 16:9; uma dica sugere girar a tela */
+#girar { display: none; }
+@media (orientation: portrait) and (max-width: 760px) {
+  #girar { display: block; position: fixed; left: 16px; right: 16px; bottom: 24px; text-align: center; font: 600 14px/1.4 var(--mono); letter-spacing: 1.5px; color: rgba(255,255,255,.8); }
+}
+</style>
+</head>
+<body>
+<div id="palco">
+<main id="deck" aria-roledescription="apresentação" aria-label="Assistente Inteligente para Gestão e Rastreabilidade Bovina">
+  <div class="faixa"><span>UNIVERSIDADE FEDERAL DO TOCANTINS · PPGGTD</span><span id="rotulo">01 · CAPA</span></div>
+  <div class="marca"><b>COMAIS <span>Labs</span></b><i></i><small>LABORATÓRIO DE INTELIGÊNCIA ARTIFICIAL · UFT</small></div>
+  <svg id="mosaico" width="448" height="128" aria-hidden="true"></svg>
+
+  <!-- ícones reutilizáveis -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <g id="i-rfid" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><rect x="34" y="30" width="32" height="40" rx="6"/><path d="M22 28Q10 50 22 72M78 28Q90 50 78 72"/><path d="M10 18Q-6 50 10 82M90 18Q106 50 90 82" stroke-width="6"/></g>
+      <g id="i-camera" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><rect x="10" y="30" width="80" height="54" rx="10"/><path d="M34 30L40 18H60L66 30"/><circle cx="50" cy="57" r="15"/></g>
+      <g id="i-balanca" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><rect x="12" y="66" width="76" height="16" rx="4"/><rect x="26" y="18" width="48" height="32" rx="5"/><path d="M50 50V66M38 34H62"/></g>
+      <g id="i-ia" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><rect x="24" y="24" width="52" height="52" rx="10"/><path d="M36 24V10M50 24V10M64 24V10M36 76V90M50 76V90M64 76V90M24 36H10M24 50H10M24 64H10M76 36H90M76 50H90M76 64H90" stroke-width="6"/><path d="M50 36L54 46L64 50L54 54L50 64L46 54L36 50L46 46Z" fill="currentColor" stroke="none"/></g>
+      <g id="i-check" fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"><path d="M18 52L40 74L84 28"/></g>
+      <g id="i-alerta" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><path d="M50 12L92 86H8Z"/><path d="M50 40V60"/><circle cx="50" cy="73" r="3" fill="currentColor"/></g>
+      <g id="i-tablet" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="18" width="72" height="64" rx="8"/><path d="M30 40H70M30 56H58" stroke-width="6"/></g>
+      <g id="i-seringa" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><path d="M24 76L66 34" stroke-width="16"/><path d="M60 22L78 40M72 28L86 14"/><path d="M24 76L12 88" stroke-width="5"/></g>
+      <g id="i-nuvem" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><path d="M28 76Q8 76 8 58Q8 40 28 40Q32 18 54 18Q76 18 80 40Q94 42 94 58Q94 76 74 76Z"/></g>
+      <g id="i-semsinal" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round"><path d="M14 44Q50 12 86 44M28 60Q50 40 72 60M14 14L86 86"/><circle cx="50" cy="76" r="5" fill="currentColor"/></g>
+      <g id="i-cadeado" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><rect x="20" y="44" width="60" height="44" rx="8"/><path d="M32 44V32Q32 14 50 14Q68 14 68 32V44M50 60V72"/></g>
+      <g id="i-pessoa" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round"><circle cx="50" cy="32" r="16"/><path d="M18 88Q18 56 50 56Q82 56 82 88"/></g>
+      <g id="i-caminhao" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="26" width="56" height="42" rx="4"/><path d="M62 40H82L94 56V68H62"/><circle cx="26" cy="76" r="9" fill="#fff" stroke-width="7"/><circle cx="78" cy="76" r="9" fill="#fff" stroke-width="7"/></g>
+      <g id="i-doc" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><path d="M24 10H62L78 26V90H24Z"/><path d="M36 44H66M36 60H66M36 76H54" stroke-width="6"/></g>
+      <!-- Nelore de perfil, virado para a direita; origem no centro da base -->
+      <g id="nelore">
+        <ellipse cx="0" cy="2" rx="150" ry="21" fill="rgba(51,51,51,.10)"/>
+        <rect x="-92" y="-70" width="17" height="66" rx="6" fill="var(--nelore-s)"/><rect x="72" y="-70" width="17" height="66" rx="6" fill="var(--nelore-s)"/>
+        <path d="M-124-132Q-142-104-138-66" stroke="var(--nelore-s)" stroke-width="6" fill="none" stroke-linecap="round"/>
+        <path d="M-126-138Q-132-74-108-64L98-64Q118-72 116-118Q110-150 64-150L-100-152Q-126-152-126-138Z" fill="var(--nelore)"/>
+        <path d="M-122-92Q-116-66-104-64L98-64Q112-70 115-92Z" fill="var(--nelore-s)" opacity=".7"/>
+        <path d="M34-148Q50-192 84-166Q98-152 96-140Z" fill="var(--nelore-e)" opacity=".75"/>
+        <rect x="-108" y="-72" width="18" height="68" rx="6" fill="var(--nelore)"/><rect x="56" y="-72" width="18" height="68" rx="6" fill="var(--nelore)"/>
+        <path d="M92-146L140-158L168-104L112-70Z" fill="var(--nelore)"/>
+        <path d="M104-76Q126-46 152-98L140-100Q124-78 108-84Z" fill="var(--nelore-s)"/>
+        <path d="M128-160L162-162Q182-150 190-110Q192-94 178-92L160-92Q138-120 128-160Z" fill="var(--nelore)"/>
+        <path d="M136-164Q140-186 152-190" stroke="#D8CFB8" stroke-width="8" fill="none" stroke-linecap="round"/>
+        <ellipse cx="182" cy="-100" rx="11" ry="10" fill="var(--focinho)"/><circle cx="160" cy="-138" r="4.5" fill="var(--focinho)"/>
+        <ellipse cx="122" cy="-150" rx="24" ry="9" transform="rotate(14 122 -150)" fill="var(--nelore-s)"/>
+        <rect x="104" y="-150" width="14" height="20" rx="3" fill="var(--ouro)"/><circle cx="120" cy="-148" r="5" fill="var(--azul-deep)"/>
+      </g>
+    </defs>
+  </svg>
+
+  <!-- 1 · CAPA -->
+  <section class="slide" data-rotulo="01 · CAPA" aria-label="Capa">
+    <div class="duas" style="grid-template-columns: 1.05fr .95fr; align-items:center; height:100%">
+      <div>
+        <div class="eyebrow anima">Projeto · Pecuária de corte</div>
+        <h1 class="anima d1" style="margin-top:28px">Assistente Inteligente <span class="acento" style="display:block">para Gestão e Rastreabilidade Bovina</span></h1>
+        <p class="apoio anima d2" style="font-style:italic">Do manejo à decisão. Cada animal, cada evento, cada evidência.</p>
+        <div class="anima d3" style="display:flex;gap:14px;margin-top:40px;flex-wrap:wrap">
+          <span class="chip">IDENTIFICAÇÃO</span><span class="chip" style="color:var(--laranja-deep)">EVIDÊNCIAS</span><span class="chip" style="color:var(--lavanda-deep)">INTELIGÊNCIA ARTIFICIAL</span>
+        </div>
+      </div>
+      <div class="painel anima d2" style="background:var(--verde-soft);height:640px">
+        <svg viewBox="0 0 800 640" width="100%" height="100%" aria-hidden="true">
+          <rect width="800" height="640" fill="#E3EBF4"/>
+          <path d="M0 400Q200 300 440 390Q620 460 800 370V640H0Z" fill="var(--pasto-e)" opacity=".55"/>
+          <path d="M0 460Q320 410 800 470V640H0Z" fill="var(--pasto)"/>
+          <use href="#nelore" transform="translate(200 510) scale(.5) scale(-1 1)"/>
+          <use href="#nelore" transform="translate(600 500) scale(.48)"/>
+          <use href="#nelore" transform="translate(150 600) scale(.66)"/>
+          <use href="#nelore" transform="translate(470 610) scale(.8)"/>
+          <g stroke="var(--azul)" stroke-width="3" stroke-dasharray="8 8" fill="none"><path d="M185 470L497 458L571 410L230 425"/></g>
+          <g fill="var(--azul)"><circle cx="185" cy="470" r="8"/><circle cx="497" cy="458" r="8"/><circle cx="571" cy="410" r="8"/><circle cx="230" cy="425" r="8"/></g>
+          <g font-family="IBM Plex Mono, monospace" font-weight="600" font-size="20" text-anchor="middle">
+            <rect x="430" y="370" width="134" height="44" rx="6" fill="var(--azul-soft)" stroke="var(--azul)" stroke-width="2"/><text x="497" y="399" fill="var(--azul-deep)">#6789</text>
+            <rect x="505" y="322" width="134" height="44" rx="6" fill="var(--laranja-soft)" stroke="var(--laranja)" stroke-width="2"/><text x="572" y="351" fill="var(--laranja-deep)">428,5 kg</text>
+            <rect x="160" y="338" width="140" height="44" rx="6" fill="var(--verde-soft)" stroke="var(--verde)" stroke-width="2"/><text x="230" y="367" fill="var(--verde-deep)">VACINA ✓</text>
+          </g>
+          <g transform="translate(560 120)"><rect x="-70" y="-5" width="140" height="10" rx="5" fill="#5F6873"/><ellipse cx="-70" cy="-18" rx="40" ry="4" fill="#5A5B5D" opacity=".5"/><ellipse cx="70" cy="-18" rx="40" ry="4" fill="#5A5B5D" opacity=".5"/><rect x="-30" y="-14" width="60" height="26" rx="10" fill="#333"/><circle cy="18" r="9" fill="var(--azul-deep)"/></g>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 · CONTEXTO -->
+  <section class="slide" data-rotulo="02 · CONTEXTO" aria-label="Contexto">
+    <div class="eyebrow anima">A pecuária e a informação</div>
+    <h2 class="anima d1">Cada animal tem uma história. <span class="acento">Cada informação importa.</span></h2>
+    <p class="apoio anima d2">Da identificação à comercialização, peso, saúde, manejo e movimentações sustentam uma produção mais eficiente e rastreável.</p>
+    <div class="grade4 anima d3" style="grid-template-columns:repeat(4,1fr);margin-top:56px">
+      <div class="card id"><svg class="ico" style="width:60px;height:60px;color:var(--azul-deep)" viewBox="-4 -4 108 108"><use href="#i-rfid"/></svg><b style="margin-top:18px">Identificação</b><span>Quem é o animal, sem ambiguidade.</span></div>
+      <div class="card"><svg class="ico" style="width:60px;height:60px;color:var(--laranja-deep)" viewBox="-4 -4 108 108"><use href="#i-balanca"/></svg><b style="margin-top:18px;color:var(--laranja-deep)">Peso</b><span>Evolução e desempenho ao longo do tempo.</span></div>
+      <div class="card"><svg class="ico" style="width:60px;height:60px;color:var(--verde-deep)" viewBox="-4 -4 108 108"><use href="#i-seringa"/></svg><b style="margin-top:18px;color:var(--verde-deep)">Saúde</b><span>Vacinas, medicamentos e exames.</span></div>
+      <div class="card"><svg class="ico" style="width:60px;height:60px;color:var(--azul-deep)" viewBox="-4 -4 108 108"><use href="#i-caminhao"/></svg><b style="margin-top:18px">Movimentação</b><span>Origem, destino e documentação.</span></div>
+    </div>
+  </section>
+
+  <!-- 3 · PROBLEMA -->
+  <section class="slide" data-rotulo="03 · O PROBLEMA" aria-label="O problema">
+    <div class="duas">
+      <div>
+        <div class="eyebrow anima">O problema</div>
+        <h2 class="anima d1">Informações <span class="acento">fragmentadas</span></h2>
+        <p class="apoio anima d2">Prancheta no curral, planilha no escritório, caderno de pesagem, guia em papel: registros que não conversam entre si.</p>
+        <div class="anima d3" style="margin-top:40px;display:flex;gap:16px;align-items:center">
+          <span class="pill al" style="font-size:22px;padding:12px 20px">#6789 · 428 kg no caderno</span>
+          <span style="font:800 40px var(--heading);color:var(--terra-deep)">≠</span>
+          <span class="pill al" style="font-size:22px;padding:12px 20px">#6789 · 482 kg na planilha</span>
+        </div>
+      </div>
+      <div class="notas">
+        <div class="nota al anima d2"><div class="k">Registros manuais</div><div class="c">Anotações coletadas à mão, sujeitas a erro de leitura e de digitação.</div></div>
+        <div class="nota al anima d3"><div class="k">Dados fragmentados</div><div class="c">Cada informação num sistema diferente: difícil acompanhar o animal individualmente.</div></div>
+        <div class="nota al anima d4" style="background:var(--terra-soft)"><div class="k">Risco de inconsistências</div><div class="c">Mais trabalho operacional e registros que se contradizem.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 · SOLUÇÃO -->
+  <section class="slide" data-rotulo="04 · A SOLUÇÃO" aria-label="A solução">
+    <div class="duas" style="grid-template-columns:1fr 1fr">
+      <div class="painel anima" style="background:var(--lavanda-soft);height:700px">
+        <svg viewBox="0 0 860 700" width="100%" height="100%" aria-label="Dispositivos do curral ligados ao núcleo de inteligência artificial">
+          <g stroke-width="5" stroke-dasharray="14 10" fill="none">
+            <line x1="170" y1="160" x2="430" y2="310" stroke="var(--azul)"/><line x1="690" y1="160" x2="430" y2="310" stroke="var(--laranja)"/>
+            <line x1="690" y1="460" x2="430" y2="310" stroke="var(--laranja)"/><line x1="170" y1="460" x2="430" y2="310" stroke="var(--azul)"/>
+          </g>
+          <circle cx="430" cy="310" r="122" fill="var(--lavanda)" opacity=".25"/><circle cx="430" cy="310" r="96" fill="var(--lavanda-deep)"/>
+          <svg x="375" y="255" width="110" height="110" viewBox="-4 -4 108 108" style="color:#fff"><use href="#i-ia"/></svg>
+          <text x="430" y="470" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="600" font-size="20" letter-spacing="2.4" fill="var(--lavanda-deep)">INTELIGÊNCIA ARTIFICIAL</text>
+          <g font-family="IBM Plex Mono, monospace" font-weight="600" font-size="19" letter-spacing="2.2" text-anchor="middle">
+            <g transform="translate(170 160)" style="color:var(--azul-deep)"><rect x="-78" y="-78" width="156" height="156" rx="18" fill="#fff" stroke="var(--azul)" stroke-width="4"/><svg x="-42" y="-42" width="84" height="84" viewBox="-4 -4 108 108"><use href="#i-rfid"/></svg><text y="112" fill="var(--azul-deep)">LEITOR RFID</text></g>
+            <g transform="translate(690 160)" style="color:var(--laranja-deep)"><rect x="-78" y="-78" width="156" height="156" rx="18" fill="#fff" stroke="var(--laranja)" stroke-width="4"/><svg x="-42" y="-42" width="84" height="84" viewBox="-4 -4 108 108"><use href="#i-camera"/></svg><text y="112" fill="var(--laranja-deep)">CÂMERA</text></g>
+            <g transform="translate(690 460)" style="color:var(--laranja-deep)"><rect x="-78" y="-78" width="156" height="156" rx="18" fill="#fff" stroke="var(--laranja)" stroke-width="4"/><svg x="-42" y="-42" width="84" height="84" viewBox="-4 -4 108 108"><use href="#i-balanca"/></svg><text y="112" fill="var(--laranja-deep)">BALANÇA</text></g>
+            <g transform="translate(170 460)" style="color:var(--azul-deep)"><rect x="-78" y="-78" width="156" height="156" rx="18" fill="#fff" stroke="var(--azul)" stroke-width="4"/><svg x="-42" y="-42" width="84" height="84" viewBox="-4 -4 108 108"><use href="#i-tablet"/></svg><text y="112" fill="var(--azul-deep)">TABLET</text></g>
+          </g>
+          <rect x="130" y="610" width="600" height="64" rx="14" fill="#fff" stroke="var(--borda)" stroke-width="2"/>
+          <text x="430" y="650" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-weight="600" font-size="19" letter-spacing="2.2" fill="var(--cinza)">PLATAFORMA DE GESTÃO</text>
+        </svg>
+      </div>
+      <div>
+        <div class="eyebrow anima">A solução</div>
+        <h2 class="anima d1">Assistente Inteligente <span class="acento">para Gestão e Rastreabilidade Bovina</span></h2>
+        <div class="notas" style="margin-top:40px">
+          <div class="nota ia anima d2"><div class="k">O que integra</div><div class="c"><b style="color:var(--azul-deep)">Identificação eletrônica</b>, <b style="color:var(--laranja-deep)">visão computacional e sensores</b> e <b style="color:var(--lavanda-deep)">inteligência artificial</b>.</div></div>
+          <div class="nota ok anima d3"><div class="k">Para quê</div><div class="c">Transformar o manejo em informações organizadas, confiáveis e úteis ao produtor.</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · COMO FUNCIONA -->
+  <section class="slide" data-rotulo="05 · COMO FUNCIONA" aria-label="Como funciona">
+    <div class="eyebrow anima">Como funciona</div>
+    <h2 class="anima d1">Seis etapas, <span class="acento">do curral à decisão</span></h2>
+    <div class="etapas">
+      <div class="etapa id anima d1"><div class="n">ETAPA 1</div><svg class="ico" viewBox="-4 -4 108 108" style="color:var(--azul-deep)"><use href="#i-tablet"/></svg><h3>Preparação do manejo</h3><p>Sessão com propriedade, atividade e equipamentos.</p></div>
+      <div class="etapa id anima d2"><div class="n">ETAPA 2</div><svg class="ico" viewBox="-4 -4 108 108" style="color:var(--azul-deep)"><use href="#i-rfid"/></svg><h3>Identificação eletrônica</h3><p>Leitura RFID no brete recupera o cadastro.</p></div>
+      <div class="etapa ev anima d3"><div class="n">ETAPA 3</div><svg class="ico" viewBox="-4 -4 108 108" style="color:var(--laranja-deep)"><use href="#i-camera"/></svg><h3>Conferência visual</h3><p>Câmera e visão computacional auxiliam a conferência.</p></div>
+      <div class="etapa ok anima d4"><div class="n">ETAPA 4</div><svg class="ico" viewBox="-4 -4 108 108" style="color:var(--verde-deep)"><use href="#i-seringa"/></svg><h3>Histórico sanitário</h3><p>Pesagem e tratamentos com evidências.</p></div>
+      <div class="etapa ia anima d5"><div class="n">ETAPA 5</div><svg class="ico" viewBox="-4 -4 108 108" style="color:var(--lavanda-deep)"><use href="#i-ia"/></svg><h3>IA a serviço do produtor</h3><p>Perguntas em linguagem natural e alertas.</p></div>
+      <div class="etapa id anima d6"><div class="n">ETAPA 6</div><svg class="ico" viewBox="-4 -4 108 108" style="color:var(--azul-deep)"><use href="#i-caminhao"/></svg><h3>Movimentação</h3><p>Conferência no embarque e rastreabilidade.</p></div>
+    </div>
+  </section>
+
+  <!-- 6 · SESSÃO E RFID -->
+  <section class="slide" data-rotulo="06 · SESSÃO E RFID" aria-label="Sessão de manejo e identificação RFID">
+    <div class="duas" style="grid-template-columns:.9fr 1.1fr">
+      <div class="com-selo anima">
+        <span class="selo">Simulação conceitual</span>
+        <div class="tela" style="height:680px"><div>
+          <div class="barra"><span>Sessão de manejo</span><span class="pill ok">✓ SESSÃO ATIVA · 07:42</span></div>
+          <div class="corpo">
+            <div class="campo"><div class="x"><div class="r">Propriedade</div><div class="v">Fazenda Santa Helena</div></div></div>
+            <div class="campo"><div class="x"><div class="r">Local · operador</div><div class="v">Curral principal · João Pereira</div></div></div>
+            <div class="campo" style="--cor:var(--azul);background:var(--azul-soft)"><div class="x"><div class="r">Operação</div><div class="v">Pesagem e manejo sanitário</div></div></div>
+            <div style="display:flex;gap:10px"><span class="pill ok">✓ RFID</span><span class="pill ok">✓ CÂMERA</span><span class="pill ok">✓ BALANÇA</span></div>
+            <div class="campo" style="--cor:var(--azul)"><svg class="ico" viewBox="-4 -4 108 108" style="color:var(--azul-deep)"><use href="#i-rfid"/></svg><div class="x"><div class="r">RFID recebido</div><div class="v" style="font-family:var(--mono)">076000123456789</div></div></div>
+            <div class="botao" style="margin-top:auto">✓ Manejo iniciado</div>
+          </div>
+        </div></div>
+      </div>
+      <div>
+        <div class="eyebrow anima">Etapas 1 e 2</div>
+        <h2 class="anima d1">Preparação e <span class="acento">identificação individual</span></h2>
+        <div class="notas" style="margin-top:40px">
+          <div class="nota id anima d2"><div class="k">Sessão de manejo</div><div class="c">O operador informa propriedade, atividade e equipamentos uma vez; o sistema organiza registros e evidências daí em diante.</div></div>
+          <div class="nota id anima d3"><div class="k">Leitura RFID no brete</div><div class="c">O número lido consulta o cadastro do <b>animal #6789</b> e recupera o histórico: 2 pesagens e 1 tratamento.</div></div>
+          <div class="nota ok anima d4"><div class="k">Menos digitação</div><div class="c">Novos eventos vão para o identificador correto, sem redigitar.</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 · CONFERÊNCIA VISUAL E PESAGEM -->
+  <section class="slide" data-rotulo="07 · CONFERÊNCIA E PESAGEM" aria-label="Conferência visual e pesagem">
+    <div class="eyebrow anima">Etapa 3 · evidência visual e pesagem</div>
+    <h2 class="anima d1">Conferência inteligente, <span class="acento">pesagem com evidências</span></h2>
+    <div class="duas" style="margin-top:40px;gap:40px">
+      <div class="com-selo anima d2">
+        <span class="selo">Simulação conceitual</span>
+        <div class="card" style="display:flex;flex-direction:column;gap:12px">
+          <div class="k" style="color:var(--laranja-deep)">Conferência da identidade</div>
+          <div class="campo" style="--cor:var(--verde)"><svg class="ico" viewBox="-4 -4 108 108" style="color:var(--verde-deep)"><use href="#i-rfid"/></svg><div class="x"><div class="v">RFID recebido</div></div><span class="pill ok">OK</span></div>
+          <div class="campo" style="--cor:var(--verde)"><svg class="ico" viewBox="-4 -4 108 108" style="color:var(--verde-deep)"><use href="#i-camera"/></svg><div class="x"><div class="v">Imagem capturada · CAM-01</div></div><span class="pill ok">OK</span></div>
+          <div class="campo" style="--cor:var(--verde);background:var(--verde-soft)"><svg class="ico" viewBox="-4 -4 108 108" style="color:var(--verde-deep)"><use href="#i-check"/></svg><div class="x"><div class="v">Brinco 6789 = RFID …6789</div></div><span class="pill ok">CONFERIDA</span></div>
+          <p class="aviso" style="margin-top:6px">Se houver divergência, o assistente pede verificação antes de confirmar. A imagem <b>auxilia</b> a conferência; não decide sozinha.</p>
+        </div>
+      </div>
+      <div class="com-selo anima d3">
+        <span class="selo">Simulação conceitual</span>
+        <div class="card" style="border-top:5px solid var(--laranja)">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><div class="k" style="color:var(--laranja-deep)">Pesagem registrada</div><span style="font:800 52px/1 var(--heading)">428,5 kg</span></div>
+          <div style="margin-top:18px;display:grid;grid-template-columns:200px 1fr;row-gap:12px;font-size:24px">
+            <span class="k" style="padding-top:5px">Animal</span><span><b>#6789</b> · 076000123456789</span>
+            <span class="k" style="padding-top:5px">Data e hora</span><span>11/11/2026 · 07:46</span>
+            <span class="k" style="padding-top:5px">Equipamento</span><span>Balança BAL-02</span>
+            <span class="k" style="padding-top:5px">Sessão</span><span>Pesagem e manejo sanitário</span>
+            <span class="k" style="padding-top:5px">Fotografia</span><span>CAM-01 · anexada</span>
+          </div>
+          <div style="margin-top:18px"><span class="pill ok">🔒 EVIDÊNCIAS PRESERVADAS</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 · SANITÁRIO E EVIDÊNCIAS -->
+  <section class="slide" data-rotulo="08 · PACOTE DE EVIDÊNCIAS" aria-label="Registro sanitário e pacote de evidências">
+    <div class="duas">
+      <div>
+        <div class="eyebrow anima">Etapa 4 · rastreabilidade</div>
+        <h2 class="anima d1">Pacote digital <span class="acento">de evidências</span></h2>
+        <p class="apoio anima d2">Vacinações, medicamentos e exames entram no histórico. A IA ajuda a preencher e verificar; o responsável confirma a execução.</p>
+        <div class="anima d3" style="margin-top:36px;display:flex;gap:12px;flex-wrap:wrap">
+          <span class="pill ok" style="font-size:20px;padding:12px 18px">✓ INFORMAÇÕES VERIFICÁVEIS</span>
+          <span class="pill ia" style="font-size:20px;padding:12px 18px">🔒 HISTÓRICO AUDITÁVEL</span>
+        </div>
+      </div>
+      <div class="grade4">
+        <div class="card anima d2"><b>O quê?</b><span>Pesagem de 428,5 kg e vacinação</span></div>
+        <div class="card anima d3"><b>Quando?</b><span>11/11/2026 · 07:46 – 07:51</span></div>
+        <div class="card anima d4"><b>Quem?</b><span>João Pereira (operador) · Ana Lima (méd.-vet.)</span></div>
+        <div class="card anima d5"><b>Com quê?</b><span>RFID · CAM-01 · Balança BAL-02</span></div>
+        <div class="nota ia anima d6" style="grid-column:1 / -1"><div class="k">O diferencial</div><div class="c">Cada operação gera um registro com origem identificável e evidências associadas.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 · OFFLINE E HISTÓRICO -->
+  <section class="slide" data-rotulo="09 · CAMPO E HISTÓRICO" aria-label="Operação offline e histórico individual">
+    <div class="duas" style="grid-template-columns:.8fr 1.2fr;gap:56px">
+      <div>
+        <div class="eyebrow anima">Operação offline · capacidade projetada</div>
+        <h2 class="anima d1" style="font-size:48px">Funciona no campo, <span class="acento">mesmo sem conexão contínua</span></h2>
+        <div class="notas" style="margin-top:32px">
+          <div class="nota go anima d2"><div class="k"><svg class="ico" viewBox="-4 -4 108 108" style="width:20px;height:20px;vertical-align:-3px;color:var(--ouro-deep)"><use href="#i-semsinal"/></svg> Sem sinal</div><div class="c">Os registros ficam numa fila local no aparelho.</div></div>
+          <div class="nota ok anima d3"><div class="k"><svg class="ico" viewBox="-4 -4 108 108" style="width:20px;height:20px;vertical-align:-3px;color:var(--verde-deep)"><use href="#i-nuvem"/></svg> Com sinal</div><div class="c">Sincronização com a plataforma central, com validação e segurança.</div></div>
+        </div>
+      </div>
+      <div class="com-selo anima d2">
+        <span class="selo">Simulação conceitual</span>
+        <div class="card" style="padding:26px 30px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><div style="font:800 34px/1 var(--heading)">Animal #6789</div><div style="font:18px var(--mono);color:var(--cinza);margin-top:6px">076000123456789 · Nelore · Macho · Lote 3</div></div>
+            <span class="pill ok">✓ HISTÓRICO ÍNTEGRO</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:28px;margin-top:22px">
+            <div>
+              <div class="k" style="color:var(--laranja-deep)">Evolução do peso (kg)</div>
+              <svg viewBox="0 0 500 290" width="100%" role="img" aria-label="Peso: 391,0 kg em 10/08, 414,0 kg em 12/10 e 428,5 kg em 11/11">
+                <g font-family="IBM Plex Mono, monospace" font-size="18" fill="var(--cinza)">
+                  <line x1="64" x2="470" y1="24" y2="24" stroke="var(--grade)" stroke-width="2"/><text x="52" y="30" text-anchor="end">440</text>
+                  <line x1="64" x2="470" y1="98" y2="98" stroke="var(--grade)" stroke-width="2"/><text x="52" y="104" text-anchor="end">420</text>
+                  <line x1="64" x2="470" y1="172" y2="172" stroke="var(--grade)" stroke-width="2"/><text x="52" y="178" text-anchor="end">400</text>
+                  <line x1="64" x2="470" y1="246" y2="246" stroke="var(--grade)" stroke-width="2"/><text x="52" y="252" text-anchor="end">380</text>
+                  <text x="64" y="282" text-anchor="middle">10/08</text><text x="339" y="282" text-anchor="middle">12/10</text><text x="470" y="282" text-anchor="middle">11/11</text>
+                </g>
+                <polyline points="64,205.3 339,120.2 470,66.6" fill="none" stroke="var(--laranja)" stroke-width="5" stroke-linejoin="round"/>
+                <g fill="#fff" stroke="var(--laranja)" stroke-width="5"><circle cx="64" cy="205.3" r="9"/><circle cx="339" cy="120.2" r="9"/><circle cx="470" cy="66.6" r="9"/></g>
+                <g font-family="IBM Plex Mono, monospace" font-size="20" font-weight="600" fill="var(--laranja-deep)"><text x="78" y="190">391,0</text><text x="339" y="158" text-anchor="middle">414,0</text><text x="456" y="50" text-anchor="end">428,5</text></g>
+              </svg>
+              <p style="font-size:22px"><b>+37,5 kg</b> em 93 dias · <b>0,40 kg/dia</b></p>
+            </div>
+            <div>
+              <div class="k">Linha do tempo</div>
+              <div style="display:flex;flex-direction:column;gap:14px;margin-top:14px;font-size:22px">
+                <div><b style="font:600 18px var(--mono);color:var(--laranja-deep)">10/08</b> · Pesagem · 391,0 kg</div>
+                <div><b style="font:600 18px var(--mono);color:var(--verde-deep)">15/09</b> · Tratamento sanitário</div>
+                <div><b style="font:600 18px var(--mono);color:var(--laranja-deep)">12/10</b> · Pesagem · 414,0 kg</div>
+                <div><b style="font:600 18px var(--mono);color:var(--laranja-deep)">11/11</b> · Pesagem atual · 428,5 kg</div>
+                <div><b style="font:600 18px var(--mono);color:var(--azul-deep)">02/07</b> · Movimentação: Pasto 5 → Lote 3</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 · ASSISTENTE E ALERTAS -->
+  <section class="slide" data-rotulo="10 · ASSISTENTE E ALERTAS" aria-label="Assistente de IA e alertas">
+    <div class="eyebrow anima">Etapa 5 · inteligência artificial a serviço do produtor</div>
+    <h2 class="anima d1">Pergunte em linguagem natural. <span class="acento">Receba alertas antes do erro.</span></h2>
+    <div class="duas" style="margin-top:40px;gap:40px">
+      <div class="com-selo anima d2">
+        <span class="selo">Simulação conceitual</span>
+        <div class="card chat" style="background:var(--neutro)">
+          <div class="balao eu">Quais animais do lote 3 ainda não foram pesados neste mês?</div>
+          <div class="balao ass">
+            <div class="k" style="color:var(--lavanda-deep);margin-bottom:6px">Assistente</div>
+            Encontrei 8 animais com pesagem pendente. Deseja preparar uma lista para o próximo manejo?
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px"><span class="pill id">#6793</span><span class="pill id">#6801</span><span class="pill id">#6804</span><span class="pill id">#6812</span><span class="pill id">#6815</span><span class="pill id">#6820</span><span class="pill id">#6827</span><span class="pill id">#6833</span></div>
+            <div style="margin-top:12px;font:17px var(--mono);color:var(--cinza)">Fonte: pesagens do lote 3 · 42 animais · 34 pesados em novembro</div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="alerta ok anima d3"><div class="bola" style="background:var(--verde)"><svg class="ico" viewBox="-4 -4 108 108" style="color:#fff;width:28px;height:28px"><use href="#i-check"/></svg></div><div><h4 style="text-decoration:line-through">Identificação divergente</h4><p>#6845 · resolvido: brinco conferido no brete e corrigido</p></div></div>
+        <div class="alerta go anima d4"><div class="bola"><svg class="ico" viewBox="-4 -4 108 108" style="color:var(--ouro-deep);width:28px;height:28px"><use href="#i-seringa"/></svg></div><div><h4>Tratamento com informação pendente</h4><p>#6790 · lote do produto não informado</p></div></div>
+        <div class="alerta id anima d5"><div class="bola"><svg class="ico" viewBox="-4 -4 108 108" style="color:var(--azul-deep);width:28px;height:28px"><use href="#i-balanca"/></svg></div><div><h4>Animais sem pesagem recente</h4><p>8 animais do lote 3</p></div></div>
+        <div class="nota ia anima d6"><div class="k">Resultado</div><div class="c">Alertas automáticos • Menos erros • Melhores decisões</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 · COMERCIALIZAÇÃO -->
+  <section class="slide" data-rotulo="11 · COMERCIALIZAÇÃO" aria-label="Comercialização">
+    <div class="duas" style="grid-template-columns:1.15fr .85fr">
+      <div class="com-selo anima">
+        <span class="selo">Simulação conceitual</span>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center"><div class="k" style="color:var(--azul-deep)">Venda · 30 animais selecionados</div><span class="pill ok">28 CONFERIDOS</span></div>
+          <div class="lote" id="lote" style="margin-top:16px"></div>
+          <div style="margin-top:18px;display:flex;gap:12px;align-items:center;padding:14px 18px;border-radius:12px;background:var(--lavanda-soft);font-size:24px">
+            <svg class="ico" viewBox="-4 -4 108 108" style="color:var(--lavanda-deep)"><use href="#i-ia"/></svg>
+            <span><b>28 animais conferidos.</b> 2 precisam de verificação antes da conclusão do embarque.</span>
+          </div>
+          <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap"><span class="pill ok">DADOS DA MOVIMENTAÇÃO ORGANIZADOS</span><span class="pill" style="background:var(--neutro);color:var(--cinza)">GTA · CANAIS OFICIAIS</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="eyebrow anima">Etapa 6</div>
+        <h2 class="anima d1">Movimentação com conferência <span class="acento">e rastreabilidade</span></h2>
+        <div class="notas" style="margin-top:36px">
+          <div class="nota id anima d2"><div class="k">No embarque</div><div class="c">Seleção dos animais, verificação do histórico e leitura individual antes de subir no caminhão.</div></div>
+          <div class="nota anima d3" style="--cor:var(--cinza);--cor-deep:var(--cinza)"><div class="k">GTA</div><div class="c">A emissão permanece nos canais oficiais autorizados, com os registros correspondentes.</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 · VÍDEO -->
+  <section class="slide" data-rotulo="12 · VÍDEO" aria-label="Vídeo institucional">
+    <div class="duas" style="grid-template-columns:1.45fr .55fr;gap:48px;align-items:center;height:100%">
+      <div class="anima">
+        <video id="video" src="midia/rastreabilidade-bovina.mp4" poster="midia/capa-video.jpg" controls preload="none" playsinline></video>
+      </div>
+      <div>
+        <div class="eyebrow anima">Vídeo institucional</div>
+        <h2 class="anima d1" style="font-size:46px">A solução em <span class="acento">5min35s</span></h2>
+        <p class="apoio anima d2" style="font-size:24px">Quinze cenas, do pasto à comercialização, com legendas em todas as falas. Versão sem narração.</p>
+        <p class="anima d3" style="margin-top:24px"><a href="midia/rastreabilidade-bovina.mp4" download style="font:600 20px var(--mono);letter-spacing:1.5px">BAIXAR MP4 ↓</a></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13 · ENCERRAMENTO -->
+  <section class="slide" data-rotulo="13 · ENCERRAMENTO" aria-label="Encerramento">
+    <div style="display:flex;flex-direction:column;justify-content:center;height:100%;max-width:1500px">
+      <div class="eyebrow anima">Do manejo à decisão</div>
+      <h1 class="anima d1" style="margin-top:28px;text-transform:uppercase;font-size:76px">Assistente Inteligente <span class="acento" style="display:block">para Gestão e Rastreabilidade Bovina</span></h1>
+      <p class="apoio anima d2" style="font-style:italic;font-size:34px">Cada animal, cada evento, cada evidência.</p>
+      <div class="anima d3" style="display:flex;gap:16px;margin-top:44px">
+        <span class="chip" style="font-size:24px;padding:14px 22px">IDENTIFICAÇÃO</span>
+        <span class="chip" style="font-size:24px;padding:14px 22px;color:var(--laranja-deep)">EVIDÊNCIAS</span>
+        <span class="chip" style="font-size:24px;padding:14px 22px;color:var(--lavanda-deep)">INTELIGÊNCIA</span>
+      </div>
+      <p class="aviso anima d4" style="margin-top:56px;max-width:1300px">As interfaces apresentadas são simulações conceituais, e os dados (animais, pessoas, fazenda) são fictícios. A operação offline é uma capacidade projetada. Nenhuma integração com sistemas governamentais é apresentada como operacional.</p>
+    </div>
+  </section>
+
+  <div id="progresso"><div></div></div>
+  <div class="rodape">
+    <span id="contador">01 / 13</span>
+    <span style="font-weight:500">← → navegar · F tela cheia</span>
+    <div class="nav"><button id="ant" aria-label="Slide anterior">← ANTERIOR</button><button id="prox" aria-label="Próximo slide">PRÓXIMO →</button></div>
+  </div>
+</main>
+</div>
+<p id="girar">Gire o celular para ver melhor · deslize para navegar</p>
+
+<script>
+(() => {
+  const deck = document.getElementById("deck");
+  const slides = [...document.querySelectorAll(".slide")];
+  const rotulo = document.getElementById("rotulo");
+  const contador = document.getElementById("contador");
+  const barra = document.querySelector("#progresso div");
+  const video = document.getElementById("video");
+  let atual = 0;
+
+  // mosaico decorativo (mesma regra do vídeo: denso e opaco no canto)
+  const cores = ["#5B84B1", "#D6C68B", "#9CB994"];
+  let s = 7; const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+  const mos = document.getElementById("mosaico");
+  for (let c = 0; c < 14; c++) for (let r = 0; r < 4; r++) {
+    const prox = (c / 13) * 0.5 + ((3 - r) / 3) * 0.5;
+    if (rnd() > 0.22 + prox * 0.72) continue;
+    const q = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    q.setAttribute("x", c * 32); q.setAttribute("y", r * 32); q.setAttribute("width", 26); q.setAttribute("height", 26);
+    q.setAttribute("fill", cores[Math.floor(rnd() * 3)]);
+    q.setAttribute("opacity", ((0.22 + prox * 0.5) * (0.7 + rnd() * 0.3)).toFixed(2));
+    mos.appendChild(q);
+  }
+
+  // lote de 30 animais, 2 para verificação
+  const lote = document.getElementById("lote");
+  for (let i = 0; i < 30; i++) {
+    const d = document.createElement("div");
+    const v = i === 11 || i === 23;
+    d.className = v ? "v" : "";
+    d.textContent = (v ? "! " : "#") + String(900 + i * 3);
+    lote.appendChild(d);
+  }
+
+  const encaixa = () => {
+    const k = Math.min(innerWidth / 1920, innerHeight / 1080);
+    deck.style.transform = `scale(${k})`;
+  };
+
+  const vai = (n, atualizaHash = true) => {
+    atual = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((sl, i) => {
+      sl.classList.toggle("ativo", i === atual);
+      sl.setAttribute("aria-hidden", i === atual ? "false" : "true");
+    });
+    rotulo.textContent = slides[atual].dataset.rotulo;
+    contador.textContent = `${String(atual + 1).padStart(2, "0")} / ${slides.length}`;
+    barra.style.width = `${((atual + 1) / slides.length) * 100}%`;
+    if (!slides[atual].contains(video)) video.pause();
+    if (atualizaHash) history.replaceState(null, "", `#${atual + 1}`);
+  };
+
+  document.getElementById("ant").onclick = () => vai(atual - 1);
+  document.getElementById("prox").onclick = () => vai(atual + 1);
+  addEventListener("keydown", (e) => {
+    if (e.target.tagName === "VIDEO" && (e.key === " " || e.key.startsWith("Arrow"))) return;
+    if (["ArrowRight", "PageDown", " "].includes(e.key)) { e.preventDefault(); vai(atual + 1); }
+    else if (["ArrowLeft", "PageUp"].includes(e.key)) { e.preventDefault(); vai(atual - 1); }
+    else if (e.key === "Home") vai(0);
+    else if (e.key === "End") vai(slides.length - 1);
+    else if (e.key === "f" || e.key === "F") {
+      if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.();
+    }
+  });
+  let x0 = null;
+  addEventListener("touchstart", (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+  addEventListener("touchend", (e) => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 50) vai(atual + (dx < 0 ? 1 : -1));
+    x0 = null;
+  });
+  addEventListener("resize", encaixa);
+  addEventListener("hashchange", () => vai((parseInt(location.hash.slice(1), 10) || 1) - 1, false));
+
+  encaixa();
+  vai((parseInt(location.hash.slice(1), 10) || 1) - 1, false);
+})();
+</script>
+</body>
+</html>

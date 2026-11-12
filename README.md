@@ -1,7 +1,7 @@
 # Assistente Inteligente para Gestão e Rastreabilidade Bovina
 
 Apresentação do projeto, com 13 slides em HTML e o vídeo institucional de
-5min35s, sem narração.
+5min32s, com narração, trilha e legendas.
 
 **Ver online:** https://rogernogueira.github.io/rastreabilidade-bovina/
 
